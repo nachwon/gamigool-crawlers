@@ -1,18 +1,19 @@
 import asyncio
 from asyncio import as_completed
 from collections import namedtuple
+from urllib.parse import parse_qs, urlparse
 
 import requests
 from pyppeteer import launch
 from pyppeteer.browser import Browser
 
-Post = namedtuple("Post", "title, content, author, reg_ts, views, likes, dislikes")
+Post = namedtuple("Post", "ref_id, title, content, author, reg_ts, views, likes, dislikes")
 
 
 async def get_post_urls(browser: Browser):
     url = "https://gall.dcinside.com/mgallery/board/lists/?id=stockus&sort_type=N&exception_mode=recommend&search_head=110&page=1"
     page = await browser.newPage()
-    await page.goto(url)
+    await page.goto(url, options={"timeout": 0})
     await page.content()
     await page.waitForSelector("tbody")
     tbody = await page.J("tbody")
@@ -37,10 +38,12 @@ async def get_post_urls(browser: Browser):
 async def get_post(link: str, browser: Browser):
     print(link, " started")
     page = await browser.newPage()
-    await page.goto(link)
+    await page.goto(link, options={"timeout": 0})
     await page.waitForSelector(".view_content_wrap")
     article = await page.J(".view_content_wrap")
     header = await article.J("header")
+    post_id = parse_qs(urlparse(link).query)['no'][0]
+    ref_id = f"디씨:{post_id}"
     title = await header.Jeval(".title_subject", "(el) => el.textContent")
     author = await header.Jeval(".nickname", "(el) => el.title")
     reg_ts = await header.Jeval(".gall_date", "(el) => el.title")
@@ -52,18 +55,19 @@ async def get_post(link: str, browser: Browser):
     likes = await count_box.Jeval(".up_num", "(el) => el.textContent")
     dislikes = await count_box.Jeval(".down_num", "(el) => el.textContent")
 
-    post = Post(title, content, author, reg_ts, views.split(" ")[-1], likes, dislikes)
+    post = Post(ref_id, title, content, author, reg_ts, views.split(" ")[-1], likes, dislikes)
     print(post)
     await page.close()
     return post
 
 
 def send_to_gamigool(post: Post):
-    return requests.post("https://hxx059yi92.execute-api.ap-northeast-2.amazonaws.com/api/crawling/posts", json={
+    return requests.post("https://1n848veode.execute-api.ap-northeast-2.amazonaws.com/api/crawling/posts", json={
+        "ref_id": post.ref_id,
         "title": post.title,
         "author": post.author,
         "content": post.content,
-        "stock_name": "null",
+        "stock_name": "해외 주식",
         "likes": int(post.likes),
         "dislikes": int(post.dislikes),
         "views": int(post.views),
