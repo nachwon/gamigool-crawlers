@@ -60,6 +60,7 @@ async def get_post_detail(url: str, browser: Browser):
 
     try:
         title: str = await page.Jeval("#bbsTitle", "(el) => el.textContent")
+        sanitized_title = re.sub(r"\[\d+]", "", title.strip())
         content: str = await page.Jeval("#bbsContent", "(el) => el.innerText")
         author: str = await page.Jeval(".nick", "(el) => el.textContent")
         dt: str = await page.Jeval(".datetime", "(el) => el.textContent")
@@ -67,7 +68,7 @@ async def get_post_detail(url: str, browser: Browser):
         views = await page.evaluate("(el) => el.textContent", views_container[0])
         likes = await page.Jeval("#approCnt", "(el) => el.textContent")
         dislikes = await page.Jeval("#opposCnt", "(el) => el.textContent")
-        return Post(f"다음:{post_id}", title.strip(), content, author, dt, views, likes, dislikes)
+        return Post(f"다음:{post_id}", sanitized_title, content, author, dt, views, likes, dislikes)
     except ElementHandleError:
         print("not found")
 
@@ -75,7 +76,7 @@ async def get_post_detail(url: str, browser: Browser):
 def send_to_gamigool(post: Post):
     return requests.post("https://1n848veode.execute-api.ap-northeast-2.amazonaws.com/api/crawling/posts", json={
         "ref_id": post.ref_id,
-        "title": re.sub(r"\[\d+]", "", post.title),
+        "title": post.title,
         "author": post.author,
         "content": post.content,
         "stock_name": "삼성전자",

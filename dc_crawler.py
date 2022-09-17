@@ -1,4 +1,5 @@
 import asyncio
+import re
 from asyncio import as_completed
 from collections import namedtuple
 from urllib.parse import parse_qs, urlparse
@@ -45,6 +46,7 @@ async def get_post(link: str, browser: Browser):
     post_id = parse_qs(urlparse(link).query)['no'][0]
     ref_id = f"디씨:{post_id}"
     title = await header.Jeval(".title_subject", "(el) => el.textContent")
+    sanitized_title = re.sub(r"\[\d+]", "", title)
     author = await header.Jeval(".nickname", "(el) => el.title")
     reg_ts = await header.Jeval(".gall_date", "(el) => el.title")
     views = await header.Jeval(".gall_count", "(el) => el.textContent")
@@ -55,7 +57,7 @@ async def get_post(link: str, browser: Browser):
     likes = await count_box.Jeval(".up_num", "(el) => el.textContent")
     dislikes = await count_box.Jeval(".down_num", "(el) => el.textContent")
 
-    post = Post(ref_id, title, content, author, reg_ts, views.split(" ")[-1], likes, dislikes)
+    post = Post(ref_id, sanitized_title, content, author, reg_ts, views.split(" ")[-1], likes, dislikes)
     print(post)
     await page.close()
     return post
