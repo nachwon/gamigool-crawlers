@@ -79,7 +79,7 @@ def send_to_gamigool(post: Post):
         "title": post.title,
         "author": post.author,
         "content": post.content,
-        "stock_name": "삼성전자",
+        "stock_name": "자유토론",
         "likes": int(post.likes),
         "dislikes": int(post.dislikes),
         "views": int(post.views),
