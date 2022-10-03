@@ -1,3 +1,4 @@
+import itertools
 import re
 from collections import namedtuple
 
@@ -57,7 +58,8 @@ def fetch_by_post(top_post, symbol):
     post["ref_id"] = f"네이버파이낸스:{nid}"
     # post['comments'] = comments
     print(post)
-    return send_to_ilgaminati(post=post)
+    send_to_ilgaminati(post=post)
+    return nid
 
 
 def fetch_by_page(symbol: str, code: str, page: int, standard):
@@ -81,9 +83,7 @@ def fetch_by_page(symbol: str, code: str, page: int, standard):
         if int(agree.text) >= standard
     ]
     top_post_list = [title_list[x] for x in idx_list]
-
-    for top_post in top_post_list:
-        fetch_by_post(top_post, symbol)
+    return [fetch_by_post(top_post, symbol) for top_post in top_post_list]
 
 
 def send_to_ilgaminati(post: dict):
@@ -104,12 +104,24 @@ def send_to_ilgaminati(post: dict):
     print("Send Result: ", resp)
 
 
+def publish_comments_crawling_event(nid_list):
+    client = boto3.client('sns')
+    client.publish(
+        TopicArn="arn:aws:sns:ap-northeast-2:536395028773:naver-finance-comments-crawling",
+        Message=",".join(nid_list)
+    )
+
+
 def lambda_handler(event, context):
-    symbol, code = event["Records"][0]["body"].split(":")
-    for i in range(30):
+    symbol, code = event["Records"][0]["Sns"]["Message"].split(":")
+    nid_lists_list = [
         fetch_by_page(
             symbol=symbol,
             code=code,
             page=i + 1,
             standard=20,
-        )
+        ) for i in range(30)
+    ]
+
+    nid_list = list(itertools.chain.from_iterable(nid_lists_list))
+    publish_comments_crawling_event(nid_list)

@@ -39,14 +39,11 @@ def get_search_trend_stock(n: int = 30):
     return zip(symbols, codes)
 
 
-def main():
-    sqs = boto3.resource('sqs')
-    queue = sqs.get_queue_by_name(QueueName='naver-financial-queue')
-    trend_stock_df = get_search_trend_stock()
-
-    for symbol, code in trend_stock_df:
-        queue.send_message(MessageBody=f"{symbol}:{code}")
-
-
 def lambda_handler(event, context):
-    main()
+    client = boto3.client('sns')
+    trend_stock_df = get_search_trend_stock()
+    for symbol, code in trend_stock_df:
+        client.publish(
+            TopicArn="arn:aws:sns:ap-northeast-2:536395028773:naver-finance-crawling",
+            Message=f"{symbol}:{code}"
+        )
